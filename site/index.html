@@ -446,9 +446,10 @@ document.querySelectorAll('[data-repo]').forEach((el) => (el.textContent = REPO)
 document.querySelectorAll('[data-repo-link]').forEach((el) => (el.href = `https://github.com/${REPO}${el.dataset.repoLink ? '/' + el.dataset.repoLink : ''}`));
 document.querySelector('[data-copy^="/plugin marketplace"]').dataset.copy = `/plugin marketplace add ${REPO}`;
 
-// Live star count on the nav button (unauthenticated API; silently skipped when rate-limited)
+// Live star count on the nav button (unauthenticated API; silently skipped when rate-limited).
+// Below 10 the plain "★ GitHub" label reads better than a tiny number.
 fetch(`https://api.github.com/repos/${REPO}`).then((r) => (r.ok ? r.json() : null)).then((d) => {
-  if (!d || typeof d.stargazers_count !== 'number') return;
+  if (!d || typeof d.stargazers_count !== 'number' || d.stargazers_count < 10) return;
   const n = d.stargazers_count >= 1000 ? (d.stargazers_count / 1000).toFixed(1) + 'k' : d.stargazers_count;
   document.querySelector('nav [data-repo-link]').textContent = `★ ${n} on GitHub`;
 }).catch(() => {});
