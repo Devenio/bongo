@@ -327,6 +327,8 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
         </div>
         <div class="play-ctl">
           <button class="btn btn-banana" id="run">🍌 Unleash Bongo</button>
+          <a class="btn btn-small" id="share-run" target="_blank" rel="noopener" hidden>Share this result</a>
+          <button class="btn btn-small" id="copy-link" hidden>Copy link</button>
           <span class="counter" id="counter"></span>
         </div>
       </div>
@@ -443,6 +445,13 @@ const SITE = 'https://bongo-monkey.vercel.app';
 document.querySelectorAll('[data-repo]').forEach((el) => (el.textContent = REPO));
 document.querySelectorAll('[data-repo-link]').forEach((el) => (el.href = `https://github.com/${REPO}${el.dataset.repoLink ? '/' + el.dataset.repoLink : ''}`));
 document.querySelector('[data-copy^="/plugin marketplace"]').dataset.copy = `/plugin marketplace add ${REPO}`;
+
+// Live star count on the nav button (unauthenticated API; silently skipped when rate-limited)
+fetch(`https://api.github.com/repos/${REPO}`).then((r) => (r.ok ? r.json() : null)).then((d) => {
+  if (!d || typeof d.stargazers_count !== 'number') return;
+  const n = d.stargazers_count >= 1000 ? (d.stargazers_count / 1000).toFixed(1) + 'k' : d.stargazers_count;
+  document.querySelector('nav [data-repo-link]').textContent = `★ ${n} on GitHub`;
+}).catch(() => {});
 
 // Theme toggle (remembered per browser when storage is available)
 const root = document.documentElement;
@@ -590,6 +599,7 @@ select('slugify');
 const line = (html, cls = '') => { const d = document.createElement('div'); if (cls) d.className = cls; d.innerHTML = html; term.append(d); term.scrollTop = term.scrollHeight; };
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const SLOW = new URLSearchParams(location.search).has('slow');
 
 document.getElementById('run').onclick = async () => {
   if (running) return;
@@ -620,7 +630,7 @@ document.getElementById('run').onclick = async () => {
         line(`  <span class="dim">→</span> ${esc(msg)}`);
       }
     }
-    if (i % 25 === 0) { counter.textContent = `${i} / ${TOTAL} chaos cases`; await sleep(16); }
+    if (i % 25 === 0) { counter.textContent = `${i} / ${TOTAL} chaos cases`; await sleep(SLOW ? 90 : 16); }
   }
   counter.textContent = `${TOTAL} / ${TOTAL} chaos cases`;
   for (const [name] of v.props) if (!found.has(name)) line(`<span class="good">✓ ${esc(name)}</span> <span class="dim">held for ${TOTAL} cases</span>`);
@@ -629,8 +639,30 @@ document.getElementById('run').onclick = async () => {
   line('');
   line(`<span class="yel">Banana score: ${score}/100 ${bananas}</span>`);
   line(found.size ? `<span class="dim">"${esc(pick(['Found a banana peel. Somebody was going to slip.', 'Your function met my bag of chaos. It did not enjoy it.', 'Ooh ooh! That one looked so innocent.']))}"</span>` : '<span class="dim">"Nothing broke. Respect. I\'m going to go sulk in a tree."</span>');
+
+  // Share hooks: a ready-made post with the juiciest repro, and a link that replays this victim
+  const link = `${SITE}/?victim=${current}&run#playground`;
+  const first = [...found.values()][0];
+  const example = first ? ` e.g. ${current}(${show(first.input)}) → ${first.msg}`.slice(0, 110) : '';
+  const text = found.size
+    ? `🐒 I let Bongo loose on ${current}() and he found ${found.size} bug${found.size > 1 ? 's' : ''} in ${TOTAL} chaos cases.${example}\n\nMonkey testing for Claude, open source:`
+    : `🐒 Bongo threw ${TOTAL} chaos cases at ${current}() and nothing broke. Monkey testing for Claude, open source:`;
+  shareRun.href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link)}`;
+  shareRun.hidden = false;
+  copyLink.hidden = false;
+  copyLink.onclick = () => copy(link, copyLink);
   running = false;
 };
+
+// Deep links for posts: ?victim=cartTotal&run auto-plays a demo; ?slow paces it for recordings
+const shareRun = document.getElementById('share-run');
+const copyLink = document.getElementById('copy-link');
+const params = new URLSearchParams(location.search);
+if (VICTIMS[params.get('victim')]) select(params.get('victim'));
+if (params.has('run')) {
+  document.getElementById('playground').scrollIntoView();
+  setTimeout(() => document.getElementById('run').click(), 600);
+}
 </script>
 </body>
 </html>
