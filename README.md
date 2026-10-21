@@ -18,6 +18,14 @@
   <a href="https://bongo-monkey.vercel.app"><img src="https://img.shields.io/badge/%F0%9F%90%92%20bongo-tested-FFD23F" alt="Bongo tested"></a>
   <img src="https://img.shields.io/badge/license-MIT-2F6B3A" alt="MIT">
   <img src="https://img.shields.io/badge/Claude%20Code-plugin-1E2A1C" alt="Claude Code plugin">
+  <a href="https://github.com/Devenio/bongo/stargazers"><img src="https://img.shields.io/github/stars/Devenio/bongo?style=social" alt="GitHub stars"></a>
+</p>
+
+<p align="center">
+  <a href="https://bongo-monkey.vercel.app/?victim=slugify&run#playground">
+    <img src="site/media/bongo-demo.gif" width="760" alt="Bongo fuzzing slugify() and cartTotal() in the browser and finding minimal repros">
+  </a><br>
+  <sub>▶ <a href="https://bongo-monkey.vercel.app/?victim=slugify&run#playground">Watch Bongo break a function in your browser</a>: no install, takes 2 seconds.</sub>
 </p>
 
 ---
