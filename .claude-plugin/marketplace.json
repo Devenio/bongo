@@ -1,0 +1,14 @@
+{
+  "name": "bongo",
+  "description": "Bongo the chaos monkey: monkey testing for Claude Code.",
+  "owner": { "name": "Devenio", "url": "https://github.com/Devenio" },
+  "plugins": [
+    {
+      "name": "bongo",
+      "source": "./",
+      "description": "Monkey-tests every code change: property-based tests, fuzzing, HTTP and UI chaos, verified Bongo Reports.",
+      "category": "testing",
+      "tags": ["testing", "fuzzing", "chaos", "qa"]
+    }
+  ]
+}

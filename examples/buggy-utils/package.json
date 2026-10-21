@@ -1,0 +1,8 @@
+{
+  "name": "buggy-utils",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Small string, duration and shopping-cart utilities.",
+  "type": "module",
+  "scripts": { "test": "node --test" }
+}

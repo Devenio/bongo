@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bongo · Monkey Testing for Claude</title>
+<meta name="description" content="Bongo is an open-source Claude skill that monkey-tests every change Claude makes: chaos inputs, fuzzing, UI and API mayhem, and only the bugs it can prove.">
+<meta property="og:title" content="Bongo · Your users are monkeys. Bongo got there first.">
+<meta property="og:description" content="An open-source Claude skill that monkey-tests every line of code Claude writes, and reports only the bugs it can prove.">
+<meta property="og:image" content="https://bongo-monkey.vercel.app/og.png">
+<meta property="og:url" content="https://bongo-monkey.vercel.app">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://bongo-monkey.vercel.app/og.png">
+<meta name="theme-color" content="#FFD23F">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FFF8E7;
+  --surface: #FFFFFF;
+  --surface-2: #FFF1CC;
+  --ink: #1E2A1C;
+  --ink-soft: #4A5546;
+  --line: #EADFC4;
+  --banana: #FFD23F;
+  --banana-deep: #C99A00;
+  --fur: #8B5A33;
+  --leaf: #2F6B3A;
+  --bug: #D93D42;
+  --ok: #2F8F4E;
+  --term-bg: #1B2419;
+  --term-ink: #E9E3D2;
+  --term-dim: #8C977F;
+  --shadow: 0 1px 0 rgba(30,42,28,.06), 0 12px 32px -12px rgba(30,42,28,.18);
+  --radius: 18px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11170F; --surface: #19211A; --surface-2: #232B1C; --ink: #F3EBD8; --ink-soft: #B9B39E; --line: #2C3627;
+    --banana-deep: #FFD23F; --leaf: #7CC48A; --bug: #FF6B6F; --ok: #6FD08C; --term-bg: #0B100A;
+    --shadow: 0 1px 0 rgba(0,0,0,.4), 0 12px 32px -12px rgba(0,0,0,.6); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11170F; --surface: #19211A; --surface-2: #232B1C; --ink: #F3EBD8; --ink-soft: #B9B39E; --line: #2C3627;
+  --banana-deep: #FFD23F; --leaf: #7CC48A; --bug: #FF6B6F; --ok: #6FD08C; --term-bg: #0B100A;
+  --shadow: 0 1px 0 rgba(0,0,0,.4), 0 12px 32px -12px rgba(0,0,0,.6); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+h1, h2, h3 { font-family: "Bricolage Grotesque", Inter, sans-serif; line-height: 1.05; letter-spacing: -0.02em; margin: 0; }
+code, pre, .mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-ligatures: none; }
+a { color: inherit; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+section { padding: 88px 0; }
+.eyebrow { display: inline-block; font: 600 13px/1 "JetBrains Mono", monospace; text-transform: uppercase; letter-spacing: .08em; color: var(--leaf); margin-bottom: 14px; }
+.lead { font-size: 19px; color: var(--ink-soft); max-width: 640px; }
+h2 { font-size: clamp(34px, 5vw, 54px); margin-bottom: 18px; }
+
+/* nav */
+nav { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(10px); background: color-mix(in srgb, var(--bg) 82%, transparent); border-bottom: 1px solid var(--line); }
+nav .wrap { display: flex; align-items: center; gap: 24px; height: 64px; }
+.brand { display: flex; align-items: center; gap: 10px; font: 800 22px "Bricolage Grotesque", sans-serif; text-decoration: none; }
+.brand img { width: 34px; height: 34px; }
+nav .links { display: flex; gap: 22px; margin-left: auto; align-items: center; }
+nav .links a { text-decoration: none; color: var(--ink-soft); font-weight: 500; font-size: 15px; }
+nav .links a:hover { color: var(--ink); }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 999px; font-weight: 600; text-decoration: none; border: 2px solid var(--ink); cursor: pointer; font-size: 15px; transition: transform .15s ease, box-shadow .15s ease; background: none; color: var(--ink); font-family: inherit; }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 6px 0 var(--ink); }
+.btn:active { transform: translateY(0); box-shadow: none; }
+.btn-banana { background: var(--banana); color: #1E2A1C; border-color: #1E2A1C; }
+.btn-small { padding: 8px 14px; font-size: 14px; }
+.theme-toggle { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 17px; color: var(--ink); }
+
+/* hero */
+.hero { padding: 72px 0 56px; position: relative; overflow-x: clip; }
+/* grid/flex children may hold nowrap code; let them shrink instead of widening the page */
+.hero .wrap > *, .play > *, .report-wrap > *, .grid > *, .steps > *, .install-row code { min-width: 0; }
+.hero .wrap { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
+.hero h1 { font-size: clamp(44px, 7vw, 84px); font-weight: 800; }
+.hero h1 .hl { background: linear-gradient(transparent 62%, var(--banana) 62% 92%, transparent 92%); padding: 0 4px; }
+.hero .lead { margin: 22px 0 30px; }
+.install { background: var(--term-bg); color: var(--term-ink); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); max-width: 560px; }
+.install-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.install-row + .install-row { border-top: 1px dashed #33402F; }
+.install-row code { flex: 1; font-size: 14px; white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
+.install-row code .p { color: var(--banana); user-select: none; }
+.copy { background: #2A3626; color: var(--term-ink); border: 0; border-radius: 8px; padding: 6px 10px; font: 600 12px "JetBrains Mono", monospace; cursor: pointer; flex-shrink: 0; }
+.copy:hover { background: #3A4935; }
+.hero-ctas { display: flex; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+.hero-note { font-size: 14px; color: var(--ink-soft); margin-top: 14px; }
+
+.stage { position: relative; aspect-ratio: 1; max-width: 460px; justify-self: center; width: 100%; }
+.stage .halo { position: absolute; inset: 8%; border-radius: 50%; background: radial-gradient(circle, var(--banana) 0%, color-mix(in srgb, var(--banana) 40%, transparent) 45%, transparent 70%); opacity: .55; }
+.stage svg { position: relative; width: 100%; height: 100%; animation: bob 3.2s ease-in-out infinite; filter: drop-shadow(0 18px 24px rgba(30,42,28,.25)); }
+.stage .eyes { animation: blink 5s infinite; transform-origin: 160px 150px; }
+.stage .banana { animation: wiggle 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: 10% 90%; }
+@keyframes bob { 50% { transform: translateY(-12px) rotate(-1.5deg); } }
+@keyframes blink { 0%, 46%, 50%, 100% { transform: scaleY(1); } 48% { transform: scaleY(.1); } }
+@keyframes wiggle { 50% { transform: rotate(-14deg); } }
+.chip { position: absolute; font: 600 13px "JetBrains Mono", monospace; background: var(--surface); border: 2px solid var(--ink); border-radius: 10px; padding: 5px 10px; box-shadow: 3px 3px 0 var(--ink); white-space: nowrap; animation: float 6s ease-in-out infinite; }
+.chip.bad { background: #FFE1E1; color: #8E1B1F; }
+@keyframes float { 50% { transform: translateY(-14px) rotate(3deg); } }
+
+/* langs strip */
+.strip { border-block: 1px solid var(--line); padding: 22px 0; background: var(--surface-2); }
+.strip .wrap { display: flex; flex-wrap: wrap; gap: 10px 28px; justify-content: center; font: 600 15px "JetBrains Mono", monospace; color: var(--ink-soft); }
+
+/* lanes */
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 42px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); transition: transform .2s ease; }
+.card:hover { transform: translateY(-4px) rotate(-.4deg); }
+.card .ico { font-size: 30px; }
+.card h3 { font-size: 22px; margin: 12px 0 8px; }
+.card p { margin: 0; color: var(--ink-soft); font-size: 15px; }
+.card .ex { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; }
+.card .ex code { font-size: 12px; background: var(--surface-2); border-radius: 6px; padding: 3px 7px; }
+
+/* playground */
+.play { display: grid; grid-template-columns: .9fr 1.1fr; gap: 28px; margin-top: 40px; align-items: start; }
+.victim { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); }
+.victim label { font-weight: 600; font-size: 14px; display: block; margin-bottom: 10px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.tab { border: 2px solid var(--ink); border-radius: 999px; padding: 6px 12px; background: none; color: var(--ink); font: 600 13px "JetBrains Mono", monospace; cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); }
+.victim pre { margin: 0; background: var(--term-bg); color: var(--term-ink); border-radius: 12px; padding: 16px; font-size: 13px; overflow-x: auto; line-height: 1.55; }
+.victim .props { margin-top: 14px; font-size: 14px; color: var(--ink-soft); }
+.victim .props li { margin: 4px 0; }
+.terminal { background: var(--term-bg); color: var(--term-ink); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.term-bar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: #243021; }
+.dot { width: 12px; height: 12px; border-radius: 50%; }
+.term-bar .title { margin-left: 8px; font: 500 13px "JetBrains Mono", monospace; color: var(--term-dim); }
+.term-body { padding: 18px; font: 13px/1.65 "JetBrains Mono", monospace; height: 420px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
+.term-body .dim { color: var(--term-dim); }
+.term-body .bad { color: #FF8A8E; }
+.term-body .good { color: #7EDC98; }
+.term-body .yel { color: var(--banana); }
+.play-ctl { display: flex; gap: 12px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+.counter { font: 600 14px "JetBrains Mono", monospace; color: var(--ink-soft); }
+
+/* how */
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 42px; counter-reset: s; }
+.step { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); }
+.step::before { counter-increment: s; content: counter(s); position: absolute; top: -14px; left: 18px; width: 30px; height: 30px; border-radius: 50%; background: var(--banana); border: 2px solid #1E2A1C; color: #1E2A1C; display: grid; place-items: center; font: 800 14px "Bricolage Grotesque"; }
+.step h3 { font-size: 19px; margin: 6px 0 8px; }
+.step p { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
+.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 22px; }
+.mode { border: 2px dashed var(--line); border-radius: 14px; padding: 16px 18px; }
+.mode code { font-weight: 600; color: var(--leaf); }
+.mode p { margin: 6px 0 0; font-size: 14px; color: var(--ink-soft); }
+
+/* report */
+.report-wrap { display: grid; grid-template-columns: 1.15fr .85fr; gap: 28px; margin-top: 40px; align-items: start; }
+.report { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 26px; font-size: 15px; }
+.report h4 { margin: 0 0 4px; font: 800 20px "Bricolage Grotesque"; }
+.report .quote { border-left: 4px solid var(--banana); padding: 4px 12px; color: var(--ink-soft); font-style: italic; margin: 12px 0; }
+.score { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 8px 0 4px; }
+.score b { font: 800 44px "Bricolage Grotesque"; }
+.finding { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-top: 12px; }
+.sev { display: inline-block; font: 700 11px "JetBrains Mono", monospace; text-transform: uppercase; padding: 2px 8px; border-radius: 6px; margin-right: 8px; color: #fff; }
+.sev.high { background: var(--bug); } .sev.med { background: #D9822B; } .sev.low { background: #7A8471; }
+.finding code { font-size: 12.5px; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+.scale { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); }
+.scale table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.scale td { padding: 8px 4px; border-bottom: 1px solid var(--line); }
+.scale td:first-child { font-family: "JetBrains Mono", monospace; white-space: nowrap; }
+.badge-box { margin-top: 18px; }
+.badge-box img { display: block; margin-bottom: 10px; height: 22px; }
+.badge-box pre { margin: 0; font-size: 12px; background: var(--term-bg); color: var(--term-ink); padding: 12px; border-radius: 10px; overflow-x: auto; white-space: pre; }
+
+/* proof */
+.proof { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 36px; }
+.proof .card h3 { font-size: 20px; }
+
+/* faq */
+.faq { max-width: 820px; margin-top: 30px; }
+details { border-bottom: 1px solid var(--line); padding: 18px 0; }
+summary { cursor: pointer; font: 700 19px "Bricolage Grotesque"; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+summary::after { content: "+"; font-size: 24px; line-height: 1; color: var(--leaf); }
+details[open] summary::after { content: "−"; }
+details p { color: var(--ink-soft); margin: 10px 0 0; }
+
+/* cta */
+.final { text-align: center; background: var(--banana); color: #1E2A1C; border-radius: 28px; padding: 64px 24px; margin: 0 20px; position: relative; overflow: hidden; }
+.final h2 { color: #1E2A1C; }
+.final img { width: 120px; height: 120px; margin-bottom: 10px; }
+.final .btn { border-color: #1E2A1C; color: #1E2A1C; }
+.final .btn:hover { box-shadow: 0 6px 0 #1E2A1C; }
+.final .btn-dark { background: #1E2A1C; color: var(--banana); }
+footer { padding: 40px 0 56px; color: var(--ink-soft); font-size: 14px; }
+footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .hero .wrap, .play, .report-wrap { grid-template-columns: 1fr; }
+  .stage { max-width: 340px; order: -1; }
+  .grid, .proof { grid-template-columns: 1fr 1fr; }
+  .steps { grid-template-columns: 1fr 1fr; row-gap: 30px; }
+  .modes { grid-template-columns: 1fr; }
+  nav .links a:not(.btn) { display: none; }
+}
+@media (max-width: 600px) {
+  .wrap { padding: 0 16px; }
+  section { padding: 64px 0; }
+  .grid, .proof, .steps { grid-template-columns: 1fr; }
+  .chip { font-size: 11px; }
+  .final { margin: 0 16px; }
+  .term-body { height: 360px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#"><img src="bongo.svg" alt="">Bongo</a>
+    <div class="links">
+      <a href="#playground">Playground</a>
+      <a href="#how">How it works</a>
+      <a href="#report">Report</a>
+      <a href="#faq">FAQ</a>
+      <button class="theme-toggle" id="theme" aria-label="Toggle dark mode">🌗</button>
+      <a class="btn btn-small" href="https://github.com/Devenio/bongo" data-repo-link>★ GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Open-source Claude skill · MIT</span>
+      <h1>Your users are monkeys. <span class="hl">Bongo</span> got there first.</h1>
+      <p class="lead">Bongo is a chaos-testing monkey for Claude. Every time Claude changes code, Bongo throws cursed unicode, double clicks, dead networks and <code>-0</code> at it. Then he reports <b>only the bugs he can prove</b>.</p>
+      <div class="install" id="install">
+        <div class="install-row"><code><span class="p">› </span>/plugin marketplace add <span data-repo>Devenio/bongo</span></code><button class="copy" data-copy="/plugin marketplace add Devenio/bongo">copy</button></div>
+        <div class="install-row"><code><span class="p">› </span>/plugin install bongo@bongo</code><button class="copy" data-copy="/plugin install bongo@bongo">copy</button></div>
+      </div>
+      <p class="hero-note">Run both in Claude Code. Bongo then guards every change automatically. You can also call him any time: <i>"monkey test the checkout flow"</i>.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-banana" href="#playground">🍌 Watch Bongo break things</a>
+        <a class="btn" href="https://github.com/Devenio/bongo" data-repo-link>Star on GitHub</a>
+      </div>
+    </div>
+    <div class="stage" aria-hidden="true">
+      <div class="halo"></div>
+      <svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="62" cy="160" r="40" fill="#7A4A2A"/><circle cx="62" cy="160" r="24" fill="#F2C9A0"/>
+        <circle cx="258" cy="160" r="40" fill="#7A4A2A"/><circle cx="258" cy="160" r="24" fill="#F2C9A0"/>
+        <ellipse cx="160" cy="160" rx="104" ry="100" fill="#8B5A33"/>
+        <path d="M140 66 Q150 36 162 62 Q170 40 182 66" fill="none" stroke="#8B5A33" stroke-width="12" stroke-linecap="round"/>
+        <path d="M160 108 C126 82 78 104 86 148 C70 186 104 236 160 236 C216 236 250 186 234 148 C242 104 194 82 160 108 Z" fill="#F2C9A0"/>
+        <rect x="56" y="88" width="208" height="14" rx="7" fill="#1E2A1C"/>
+        <circle cx="124" cy="94" r="26" fill="#FFD23F" stroke="#1E2A1C" stroke-width="7"/>
+        <circle cx="196" cy="94" r="26" fill="#FFD23F" stroke="#1E2A1C" stroke-width="7"/>
+        <rect x="146" y="88" width="28" height="10" rx="5" fill="#1E2A1C"/>
+        <path d="M110 84 L120 78" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".8"/>
+        <path d="M182 84 L192 78" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".8"/>
+        <g class="eyes">
+          <ellipse cx="130" cy="148" rx="15" ry="18" fill="#fff"/><ellipse cx="190" cy="148" rx="15" ry="18" fill="#fff"/>
+          <circle id="pupil-l" cx="135" cy="152" r="8" fill="#1E2A1C"/><circle id="pupil-r" cx="195" cy="152" r="8" fill="#1E2A1C"/>
+        </g>
+        <path d="M112 126 Q128 118 146 128" fill="none" stroke="#5C361C" stroke-width="6" stroke-linecap="round"/>
+        <path d="M174 124 Q192 114 208 122" fill="none" stroke="#5C361C" stroke-width="6" stroke-linecap="round"/>
+        <ellipse cx="152" cy="180" rx="4" ry="3" fill="#5C361C"/><ellipse cx="168" cy="180" rx="4" ry="3" fill="#5C361C"/>
+        <path d="M118 196 Q160 238 206 192 Q164 214 118 196 Z" fill="#5C1F1F"/>
+        <rect x="150" y="200" width="16" height="10" rx="2" fill="#fff"/>
+        <circle cx="104" cy="190" r="9" fill="#F08A7A" opacity=".5"/><circle cx="216" cy="186" r="9" fill="#F08A7A" opacity=".5"/>
+        <g transform="translate(222 214) rotate(-18)"><g class="banana">
+          <path d="M0 40 C10 6 52 -8 82 4 C60 6 30 20 18 46 Z" fill="#FFD23F" stroke="#C99A00" stroke-width="4" stroke-linejoin="round"/>
+          <path d="M80 4 L90 -2" stroke="#5C361C" stroke-width="6" stroke-linecap="round"/>
+          <ellipse cx="14" cy="48" rx="20" ry="16" fill="#8B5A33"/><ellipse cx="18" cy="44" rx="10" ry="8" fill="#F2C9A0"/>
+        </g></g>
+      </svg>
+      <span class="chip" style="top:6%;left:-2%;animation-delay:-1s">NaN</span>
+      <span class="chip bad" style="top:16%;right:-4%;animation-delay:-3s">'; DROP TABLE</span>
+      <span class="chip" style="bottom:22%;left:-6%;animation-delay:-2s">👩‍👩‍👧‍👦</span>
+      <span class="chip" style="bottom:6%;right:4%;animation-delay:-4s">-0</span>
+      <span class="chip bad" style="top:46%;right:-8%;animation-delay:-5s">double submit</span>
+      <span class="chip" style="top:54%;left:-10%;animation-delay:-.5s">null</span>
+    </div>
+  </div>
+</header>
+
+<div class="strip"><div class="wrap">
+  <span>Python</span><span>JS / TS</span><span>Go</span><span>Rust</span><span>Java · Kotlin</span><span>C#</span><span>Ruby</span><span>PHP</span><span>Swift</span><span>Web UIs</span><span>HTTP APIs</span>
+</div></div>
+
+<section id="lanes">
+  <div class="wrap">
+    <span class="eyebrow">Six lanes of chaos</span>
+    <h2>Bongo doesn't read your happy path.</h2>
+    <p class="lead">Unit tests check what you thought of. Bongo checks what you didn't. He picks the right lanes for your code and writes real, seeded property-based tests in your own framework: Hypothesis, fast-check, Go fuzzing, proptest, jqwik and more.</p>
+    <div class="grid">
+      <div class="card"><div class="ico">🍌</div><h3>Input chaos</h3><p>Empty, huge, emoji, right-to-left text, null bytes, NaN, MAX_INT, malformed dates and JSON, and injection-shaped strings.</p><div class="ex"><code>""</code><code>‮</code><code>2⁵³+1</code><code>Feb 30</code></div></div>
+      <div class="card"><div class="ico">🔀</div><h3>Sequence chaos</h3><p>Wrong call order, double submit, use-after-close, retry storms. Random operation sequences are checked against a model.</p><div class="ex"><code>close();close()</code><code>undo ×99</code></div></div>
+      <div class="card"><div class="ico">⚡</div><h3>Concurrency chaos</h3><p>Parallel calls, read-modify-write races, cancellation mid-flight, promises resolving in the "wrong" order.</p><div class="ex"><code>Promise.all ×50</code><code>abort()</code></div></div>
+      <div class="card"><div class="ico">🌪️</div><h3>Environment chaos</h3><p>Missing env vars, full disks, flaky or slow networks, clock skew, Turkish locales, timezones with 45-minute offsets.</p><div class="ex"><code>ENOSPC</code><code>TZ=+05:45</code><code>429</code></div></div>
+      <div class="card"><div class="ico">🖱️</div><h3>UI chaos</h3><p>A seeded Playwright monkey clicks, types, resizes, goes back and goes offline, and catches XSS, uncaught errors and white screens.</p><div class="ex"><code>dblclick</code><code>offline</code><code>320×568</code></div></div>
+      <div class="card"><div class="ico">🌐</div><h3>API chaos</h3><p>Wrong methods, malformed bodies, giant payloads, type confusion and prototype pollution. It flags 5xx responses, hangs and leaked stack traces.</p><div class="ex"><code>{"a":</code><code>__proto__</code><code>?limit=1e9</code></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="playground" style="background:var(--surface-2)">
+  <div class="wrap">
+    <span class="eyebrow">Live playground · runs in your browser</span>
+    <h2>Go on. Let him loose.</h2>
+    <p class="lead">These functions look fine and would pass a typical code review. Press the button and Bongo fuzzes them right here in your browser, shrinking every crash to a minimal repro.</p>
+    <div class="play">
+      <div class="victim">
+        <label>Pick a victim</label>
+        <div class="tabs" role="tablist" id="tabs"></div>
+        <pre id="code"></pre>
+        <ul class="props" id="props"></ul>
+      </div>
+      <div>
+        <div class="terminal">
+          <div class="term-bar"><span class="dot" style="background:#FF5F57"></span><span class="dot" style="background:#FEBC2E"></span><span class="dot" style="background:#28C840"></span><span class="title">bongo — monkey-test (quick mode)</span></div>
+          <div class="term-body" id="term" aria-live="polite"><span class="dim">🐒 Bongo is waiting in his tree. Press the banana.</span></div>
+        </div>
+        <div class="play-ctl">
+          <button class="btn btn-banana" id="run">🍌 Unleash Bongo</button>
+          <span class="counter" id="counter"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <span class="eyebrow">Runs on every change</span>
+    <h2>A monkey on Claude's shoulder.</h2>
+    <p class="lead">The plugin ships a skill <i>and</i> a pair of hooks. Claude can't say "done" on new code until Bongo has had a go. Trivial edits get waved through.</p>
+    <div class="steps">
+      <div class="step"><h3>Claude edits code</h3><p>A tiny hook notes each changed source file. Tests, docs, config and vendored code are ignored.</p></div>
+      <div class="step"><h3>Bongo blocks "done"</h3><p>When Claude tries to finish, Bongo blocks the stop once and hands Claude the exact files to check.</p></div>
+      <div class="step"><h3>Quick monkey test</h3><p>Recon, properties, seeded chaos, then triage. It's time-boxed to about 5 minutes and every crash is reproduced and shrunk.</p></div>
+      <div class="step"><h3>Bongo Report</h3><p>You get a banana score, verified findings with minimal repros, and regression tests for anything fixed.</p></div>
+    </div>
+    <div class="modes">
+      <div class="mode"><code>BONGO_MODE=gate</code> <small>(default)</small><p>Blocks the stop once per batch of changes. Safe from loops by design.</p></div>
+      <div class="mode"><code>BONGO_MODE=nudge</code><p>Never blocks. Bongo whispers a reminder after the first code edit.</p></div>
+      <div class="mode"><code>BONGO_MODE=off</code><p>Skill only: call Bongo yourself with "monkey test this". Per-project via <code>.bongo.json</code>.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="report" style="background:var(--surface-2)">
+  <div class="wrap">
+    <span class="eyebrow">The Bongo Report</span>
+    <h2>Bananas, not vibes.</h2>
+    <p class="lead">Every run ends with a scored, scannable report. A failing test is only a <i>suspect</i>. Bongo reproduces it, shrinks it and checks it against the contract before it counts.</p>
+    <div class="report-wrap">
+      <div class="report">
+        <h4>🐒 Bongo Report: examples/buggy-utils/src (targeted)</h4>
+        <div class="quote">"Ooh ooh! I bought five plums at $19.99 and the cart charged me $99.94999999999999."</div>
+        <div class="score"><b>31/100</b><span>🍌🍌 <b style="font-size:16px">Shaky</b>: Bongo is swinging from the chandeliers</span></div>
+        <div class="mono" style="font-size:13px;color:var(--ink-soft)">Thrown: ~13,150 chaos cases across 18 properties · seed 42 · real run of this repo's example</div>
+        <div class="finding"><span class="sev high">high</span><b>The documented example fails</b><br><code>slugify("Hello World!")</code> → <code>"hello-world-"</code>: only the leading hyphen is stripped.</div>
+        <div class="finding"><span class="sev high">high</span><b>"1.5h" parses as 5 hours</b><br><code>parseDuration("1.5h") === 18000000</code>: unknown characters are silently skipped, so <code>"-5m"</code> becomes +5m and <code>"abc"</code> becomes 0.</div>
+        <div class="finding"><span class="sev high">high</span><b>Cart totals drift off the cent</b><br><code>add("plum", 19.99, 5)</code> → <code>99.94999999999999</code>. fast-check shrank a random add/remove sequence down to this one call.</div>
+        <div class="finding"><span class="sev med">medium</span><b>Non-Latin titles vanish</b><br><code>slugify("日本語")</code> → <code>""</code>: every CJK, Arabic or Persian title gets the same empty slug.</div>
+        <p style="margin:12px 0 0;font-size:14px;color:var(--ink-soft)">…plus 3 more, including string quantities that concatenate (<code>"2"</code> → <code>"021"</code>). 💪 Survived: <code>format → parse</code> round-trip for 1,000 integers up to 2⁵³−1, and 120 hostile SKUs such as <code>__proto__</code>.</p>
+      </div>
+      <div class="scale">
+        <table>
+          <tr><td>95–100</td><td>🍌🍌🍌🍌🍌 <b>Bongo-proof</b></td></tr>
+          <tr><td>80–94</td><td>🍌🍌🍌🍌 Sturdy</td></tr>
+          <tr><td>60–79</td><td>🍌🍌🍌 Wobbly</td></tr>
+          <tr><td>30–59</td><td>🍌🍌 Shaky</td></tr>
+          <tr><td>0–29</td><td>🍌 Banana peel</td></tr>
+        </table>
+        <div class="badge-box">
+          <p style="margin:0 0 10px;font-weight:600">Survived Bongo? Show it off.</p>
+          <img src="https://img.shields.io/badge/%F0%9F%90%92%20bongo-tested-FFD23F" alt="Bongo tested badge">
+          <pre id="badge-md"></pre>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <button class="btn btn-small" data-copy-from="badge-md">Copy badge</button>
+            <a class="btn btn-small" id="share" target="_blank" rel="noopener">Share on X</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="proof">
+  <div class="wrap">
+    <span class="eyebrow">Built to be trusted</span>
+    <h2>Chaotic monkey. Strict handler.</h2>
+    <div class="proof">
+      <div class="card"><div class="ico">🔬</div><h3>Prove every banana</h3><p>Reproduce, shrink, verify against the contract, then classify. This follows <a href="https://arxiv.org/abs/2510.09907">agentic property-based testing research</a>, where a reflection step cut false positives. Unverifiable hunches get their own "suspicious" section.</p></div>
+      <div class="card"><div class="ico">🛟</div><h3>Safe by default</h3><p>Bongo works only on localhost and temp dirs. The scripts refuse remote hosts, the UI monkey avoids "Delete", "Pay" and "Log out", and the HTTP monkey skips DELETE unless you say <code>--reckless</code>.</p></div>
+      <div class="card"><div class="ico">🎲</div><h3>Reproducible chaos</h3><p>Every generator is seeded. Re-run with the same seed and get the same mayhem. Confirmed bugs become regression tests in your real suite.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="faq" style="padding-top:0">
+  <div class="wrap">
+    <span class="eyebrow">FAQ</span>
+    <h2>Questions, peeled.</h2>
+    <div class="faq">
+      <details><summary>Won't this slow Claude down?</summary><p>Quick mode is time-boxed to about 5 minutes and covers only the files Claude just changed. Trivial edits like comments, formatting or config get a one-line "nothing to monkey with". If you want zero friction, set <code>BONGO_MODE=nudge</code> or <code>off</code>.</p></details>
+      <details><summary>Can it loop forever?</summary><p>No. The gate fires once per batch of changes. It honors Claude Code's <code>stop_hook_active</code> flag and forgets edits made during Bongo's own run.</p></details>
+      <details><summary>Which languages?</summary><p>Any. Bongo prefers whatever your project already uses: Hypothesis, fast-check, Go native fuzzing, proptest, jqwik, Kotest, FsCheck, Eris and SwiftCheck. Without a library he falls back to a seeded loop. The UI and HTTP monkeys need Node 18+, and the UI one also needs Playwright.</p></details>
+      <details><summary>Does it work on claude.ai or the API?</summary><p>The skill does. Zip <code>skills/monkey-test</code> and upload it under Settings → Capabilities → Skills, or via the Skills API. The automatic "every change" hooks are a Claude Code feature.</p></details>
+      <details><summary>Can I make Bongo less silly?</summary><p>Yes. Say "no persona" or set <code>BONGO_VOICE=off</code>. The report stays the same; it just drops the jokes. Bongo will sulk, privately.</p></details>
+      <details><summary>Is it free?</summary><p>MIT licensed, forever. Bananas welcome: star the repo, add the badge, send a PR with a new chaos trick.</p></details>
+    </div>
+  </div>
+</section>
+
+<div class="final">
+  <img src="bongo.svg" alt="Bongo the monkey">
+  <h2>Ship code that survived the monkey.</h2>
+  <p style="font-size:18px;max-width:560px;margin:0 auto 26px">Two commands. Then every change Claude makes gets a visit from Bongo.</p>
+  <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+    <a class="btn btn-dark" href="#install">Install Bongo</a>
+    <a class="btn" href="https://github.com/Devenio/bongo" data-repo-link>★ Star on GitHub</a>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>🐒 Bongo · MIT · Made with an unreasonable number of bananas.</span>
+    <span><a href="https://github.com/Devenio/bongo" data-repo-link>GitHub</a> · <a href="https://github.com/Devenio/bongo/issues" data-repo-link="issues">Report a bug (ironic)</a></span>
+  </div>
+</footer>
+
+<script>
+// One place to change the repo for forks.
+const REPO = 'Devenio/bongo';
+const SITE = 'https://bongo-monkey.vercel.app';
+document.querySelectorAll('[data-repo]').forEach((el) => (el.textContent = REPO));
+document.querySelectorAll('[data-repo-link]').forEach((el) => (el.href = `https://github.com/${REPO}${el.dataset.repoLink ? '/' + el.dataset.repoLink : ''}`));
+document.querySelector('[data-copy^="/plugin marketplace"]').dataset.copy = `/plugin marketplace add ${REPO}`;
+
+// Theme toggle (remembered per browser when storage is available)
+const root = document.documentElement;
+try { const t = localStorage.getItem('bongo-theme'); if (t) root.dataset.theme = t; } catch {}
+document.getElementById('theme').onclick = () => {
+  const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  root.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('bongo-theme', root.dataset.theme); } catch {}
+};
+
+// Copy buttons
+function copy(text, btn) {
+  navigator.clipboard?.writeText(text).then(() => { const o = btn.textContent; btn.textContent = 'copied 🍌'; setTimeout(() => (btn.textContent = o), 1400); });
+}
+document.querySelectorAll('[data-copy]').forEach((b) => (b.onclick = () => copy(b.dataset.copy, b)));
+const badge = `[![Bongo tested](https://img.shields.io/badge/%F0%9F%90%92%20bongo-tested-FFD23F)](${SITE})`;
+document.getElementById('badge-md').textContent = badge;
+document.querySelector('[data-copy-from]').onclick = (e) => copy(badge, e.currentTarget);
+document.getElementById('share').href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(`🐒 I let Bongo loose on my code. He found bugs my tests never would. Monkey testing for Claude, open source: ${SITE} #BongoTested`);
+
+// Eyes follow the cursor
+const pl = document.getElementById('pupil-l'), pr = document.getElementById('pupil-r');
+const svg = document.querySelector('.stage svg');
+addEventListener('pointermove', (e) => {
+  const r = svg.getBoundingClientRect();
+  const dx = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / 400));
+  const dy = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / 400));
+  pl.setAttribute('cx', 130 + dx * 6); pl.setAttribute('cy', 148 + dy * 7);
+  pr.setAttribute('cx', 190 + dx * 6); pr.setAttribute('cy', 148 + dy * 7);
+});
+
+// ---------------- Playground: a tiny in-browser monkey ----------------
+const VICTIMS = {
+  slugify: {
+    code: `// "Hello World!" -> "hello-world"
+function slugify(title) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-/, '');
+}`,
+    fn: (title) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-/, ''),
+    gen: 'string',
+    props: [
+      ['never crashes', (f, x) => { f(x); }],
+      ['no leading/trailing dashes', (f, x) => { const s = f(x); if (/^-|-$/.test(s)) throw new Error(`got ${JSON.stringify(s)}`); }],
+      ['keeps letters of any language', (f, x) => { if (/\p{L}/u.test(String(x)) && !/[a-z0-9\p{L}]/u.test(f(x))) throw new Error(`all letters dropped: ${JSON.stringify(f(x))}`); }],
+    ],
+  },
+  parseDuration: {
+    code: `// "1h30m" -> 5400000
+const UNITS = { d: 864e5, h: 36e5, m: 6e4, s: 1e3, ms: 1 };
+function parseDuration(input) {
+  let total = 0;
+  for (const [, n, u] of input.matchAll(/(\\d+)(ms|d|h|m|s)/g))
+    total += Number(n) * UNITS[u];
+  return total;
+}`,
+    fn: (input) => { const U = { d: 864e5, h: 36e5, m: 6e4, s: 1e3, ms: 1 }; let t = 0; for (const [, n, u] of input.matchAll(/(\d+)(ms|d|h|m|s)/g)) t += Number(n) * U[u]; return t; },
+    gen: 'duration',
+    props: [
+      ['never crashes', (f, x) => { f(x); }],
+      ['rejects garbage instead of returning 0', (f, x) => { if (typeof x === 'string' && !/^(\d+(ms|d|h|m|s))+$/.test(x) && f(x) === 0) throw new Error(`${JSON.stringify(x)} parsed as 0 ms`); }],
+      ['result is a finite number', (f, x) => { const v = f(x); if (!Number.isFinite(v)) throw new Error(`got ${v}`); }],
+      ['"30m" means 30 minutes, not 30 ms', (f, x) => { if (f('30m') !== 1800000) throw new Error(`got ${f('30m')}`); }],
+    ],
+  },
+  cartTotal: {
+    code: `// Sum of price × qty, in dollars
+function cartTotal(lines) {
+  let sum = 0;
+  for (const { price, qty } of lines)
+    sum += price * qty;
+  return sum;
+}`,
+    fn: (lines) => { let s = 0; for (const { price, qty } of lines) s += price * qty; return s; },
+    gen: 'cart',
+    props: [
+      ['never negative', (f, x) => { const v = f(x); if (v < 0) throw new Error(`total ${v}`); }],
+      ['exact to the cent', (f, x) => { const v = f(x); if (Math.round(v * 100) / 100 !== v) throw new Error(`total ${v}`); }],
+      ['always a number', (f, x) => { const v = f(x); if (typeof v !== 'number' || Number.isNaN(v)) throw new Error(`total ${v}`); }],
+    ],
+  },
+};
+
+let rnd;
+function seedRng(a) { rnd = () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const pick = (xs) => xs[Math.floor(rnd() * xs.length)];
+const CHAOS = ['', ' ', 'Hi!', 'Ünïcødé', '日本語', '👩‍👩‍👧‍👦', '---', 'a--b', '‮evil', 'İstanbul', 'null', 'NaN', '-0', '  spaced  ', 'Ω', 'ß'];
+const GENS = {
+  string: () => pick([() => pick(CHAOS), () => pick([null, undefined, 42, {}]), () => Array.from({ length: Math.floor(rnd() * 12) }, () => pick([...'abcXYZ09 -_!?éü日🍌'])).join('')])(),
+  duration: () => pick([
+    () => `${Math.floor(rnd() * 100)}${pick(['ms', 'd', 'h', 'm', 's'])}`,
+    () => pick(['', 'banana', '1h1h', '1.5h', '-5m', '1H', ' 1h', '1 h', '9'.repeat(400) + 'd', 'ms', '30m']),
+    () => pick([null, undefined, 90, ['1h']]),
+  ])(),
+  cart: () => Array.from({ length: 1 + Math.floor(rnd() * 4) }, () => ({
+    price: pick([0.1, 0.2, 9.99, 19.95, 1, 0.07, -5, 0]),
+    qty: pick([1, 2, 3, 0, -1, 7, 1.5]),
+  })),
+};
+const show = (x) => {
+  let s; try { s = x === undefined ? 'undefined' : JSON.stringify(x); } catch { s = String(x); }
+  return s.length > 90 ? `${s.slice(0, 40)}…${s.slice(-12)} (${s.length} chars)` : s;
+};
+
+// Shrink: try simpler candidates while the failure persists
+function shrink(fail, x) {
+  const cands = (v) => {
+    if (typeof v === 'string') return [...new Set(['', v.slice(0, 1), v.slice(0, Math.ceil(v.length / 2)), v.slice(Math.floor(v.length / 2)), v.slice(1), v.slice(0, -1), v.trim()])].filter((c) => c !== v && c.length < v.length);
+    if (Array.isArray(v)) return [v.slice(0, 1), v.slice(1), v.slice(0, -1)].filter((c) => c.length && c.length < v.length);
+    return [];
+  };
+  let cur = x;
+  for (let round = 0; round < 400; round++) {
+    const next = cands(cur).find((c) => { try { fail(c); return false; } catch { return true; } });
+    if (next === undefined) break;
+    cur = next;
+  }
+  return cur;
+}
+
+const tabs = document.getElementById('tabs');
+const codeEl = document.getElementById('code');
+const propsEl = document.getElementById('props');
+const term = document.getElementById('term');
+const counter = document.getElementById('counter');
+let current = 'slugify', running = false;
+function select(name) {
+  current = name;
+  [...tabs.children].forEach((b) => b.setAttribute('aria-selected', b.dataset.name === name));
+  codeEl.textContent = VICTIMS[name].code;
+  propsEl.innerHTML = '<b style="color:var(--ink)">Properties Bongo checks</b>' + VICTIMS[name].props.map(([p]) => `<li>${p}</li>`).join('');
+  term.innerHTML = '<span class="dim">🐒 Bongo is eyeing <b>' + name + '</b>. Press the banana.</span>';
+  counter.textContent = '';
+}
+for (const name of Object.keys(VICTIMS)) {
+  const b = document.createElement('button');
+  b.className = 'tab'; b.role = 'tab'; b.dataset.name = name; b.textContent = name + '()';
+  b.onclick = () => !running && select(name);
+  tabs.append(b);
+}
+select('slugify');
+
+const line = (html, cls = '') => { const d = document.createElement('div'); if (cls) d.className = cls; d.innerHTML = html; term.append(d); term.scrollTop = term.scrollHeight; };
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+document.getElementById('run').onclick = async () => {
+  if (running) return;
+  running = true;
+  const v = VICTIMS[current];
+  const seed = Math.floor(Math.random() * 1e6);
+  seedRng(seed);
+  term.innerHTML = '';
+  line(`🐒 Bongo is loose on <b>${current}()</b> · seed <span class="yel">${seed}</span>`, 'dim');
+  line(`<span class="dim">recon › ${v.props.length} properties · lanes: input chaos, type confusion</span>`);
+  await sleep(350);
+  const found = new Map();
+  const TOTAL = 600;
+  // Only the crash property judges inputs that throw; the others check results
+  const crashes = (x) => { try { v.fn(x); return false; } catch { return true; } };
+  const check = (name, prop) => (x) => { if (name !== 'never crashes' && crashes(x)) return; prop(v.fn, x); };
+  for (let i = 1; i <= TOTAL; i++) {
+    const x = GENS[v.gen]();
+    for (const [name, prop] of v.props) {
+      if (found.has(name)) continue;
+      const fails = check(name, prop);
+      try { fails(x); } catch (e) {
+        const min = shrink(fails, x);
+        let msg; try { fails(min); msg = e.message; } catch (e2) { msg = e2.message; }
+        found.set(name, { input: min, msg, at: i });
+        line(`<span class="bad">✗ ${esc(name)}</span>`);
+        line(`  <span class="dim">minimal repro:</span> ${esc(current)}(${esc(show(min))})`);
+        line(`  <span class="dim">→</span> ${esc(msg)}`);
+      }
+    }
+    if (i % 25 === 0) { counter.textContent = `${i} / ${TOTAL} chaos cases`; await sleep(16); }
+  }
+  counter.textContent = `${TOTAL} / ${TOTAL} chaos cases`;
+  for (const [name] of v.props) if (!found.has(name)) line(`<span class="good">✓ ${esc(name)}</span> <span class="dim">held for ${TOTAL} cases</span>`);
+  const score = Math.max(0, 100 - found.size * 15);
+  const bananas = '🍌'.repeat(score >= 95 ? 5 : score >= 80 ? 4 : score >= 60 ? 3 : score >= 30 ? 2 : 1);
+  line('');
+  line(`<span class="yel">Banana score: ${score}/100 ${bananas}</span>`);
+  line(found.size ? `<span class="dim">"${esc(pick(['Found a banana peel. Somebody was going to slip.', 'Your function met my bag of chaos. It did not enjoy it.', 'Ooh ooh! That one looked so innocent.']))}"</span>` : '<span class="dim">"Nothing broke. Respect. I\'m going to go sulk in a tree."</span>');
+  running = false;
+};
+</script>
+</body>
+</html>

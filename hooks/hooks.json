@@ -1,0 +1,28 @@
+{
+  "description": "Bongo: monkey-test every code change before Claude finishes (BONGO_MODE=gate|nudge|off)",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/bongo-hook.mjs\" track",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/bongo-hook.mjs\" gate",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

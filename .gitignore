@@ -1,0 +1,6 @@
+node_modules/
+.bongo/
+.vercel/
+*.log
+.DS_Store
+.env*

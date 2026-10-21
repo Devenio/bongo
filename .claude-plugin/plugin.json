@@ -1,0 +1,10 @@
+{
+  "name": "bongo",
+  "description": "Bongo the chaos monkey: monkey-tests and fuzzes every code change Claude makes, then reports only the bugs it can prove.",
+  "version": "1.1.0",
+  "author": { "name": "Devenio", "url": "https://github.com/Devenio" },
+  "homepage": "https://bongo-monkey.vercel.app",
+  "repository": "https://github.com/Devenio/bongo",
+  "license": "MIT",
+  "keywords": ["testing", "monkey-testing", "fuzzing", "property-based-testing", "chaos", "qa", "playwright", "hypothesis", "fast-check"]
+}
